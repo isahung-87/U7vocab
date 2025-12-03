@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B1U7 Sunlight in our Wallets 單字互動學習機</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 和 Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* 翻牌效果 CSS */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* 動畫效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        .animate-bounce-in { animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    </style>
+</head>
+<body class="bg-amber-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- 圖標組件 (SVG Icons) ---
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const icons = {
+                BookOpen: <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />,
+                Brain: <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z" />,
+                RotateCcw: <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5" />,
+                CheckCircle: <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3" />,
+                XCircle: <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M15 9l-6 6 M9 9l6 6" />,
+                ArrowRight: <path d="M5 12h14 M12 5l7 7-7 7" />,
+                ArrowLeft: <path d="M19 12H5 M12 19l-7-7 7-7" />,
+                Star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
+                Trophy: <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6 M18 9h1.5a2.5 2.5 0 0 0 0-5H18 M4 22h16 M2 22h20 M8 22v-4.19a2 2 0 0 0 .81-.5l.3-.18a2 2 0 0 1 1.78 0l.3.18a2 2 0 0 0 .81.5V22a2 2 0 0 0 2-2V9c0-1.84.61-3.55 1.71-4.9h-10.42C5.39 5.45 6 7.16 6 9v11a2 2 0 0 0 2 2z" />,
+                Volume2: <path d="M11 5L6 9H2v6h4l5 4V5z M19.07 4.93a10 10 0 0 1 0 14.14 M15.54 8.46a5 5 0 0 1 0 7.07" />
+            };
+
+            return (
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    width={size} 
+                    height={size} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    className={className}
+                >
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        // --- 資料庫 ---
+        const vocabularyData = [
+            { 
+                id: 1, 
+                word: "electricity", 
+                pos: "n.", 
+                meaning: "電力；電", 
+                collocation: "generate electricity (發電)", 
+                sentence: "We rely on electricity to power our lights and appliances.",
+                sentence_cn: "我們依賴電力來點亮燈光和運作家電。"
+            },
+            { 
+                id: 2, 
+                word: "bill", 
+                pos: "n.", 
+                meaning: "帳單", 
+                collocation: "pay the bill (付帳單)", 
+                sentence: "Don't forget to pay the phone bill by Friday.",
+                sentence_cn: "別忘了在週五前繳電話費。"
+            },
+            { 
+                id: 3, 
+                word: "complex", 
+                pos: "adj.", 
+                meaning: "複雜的", 
+                collocation: "complex system (複雜的系統)", 
+                sentence: "The human brain is a very complex organ.",
+                sentence_cn: "人腦是一個非常複雜的器官。"
+            },
+            { 
+                id: 4, 
+                word: "consider", 
+                pos: "v.", 
+                meaning: "考慮", 
+                collocation: "consider + Ving (考慮做...)", 
+                sentence: "We are considering buying a new house next year.",
+                sentence_cn: "我們正在考慮明年買一棟新房子。"
+            },
+            { 
+                id: 5, 
+                word: "install", 
+                pos: "v.", 
+                meaning: "安裝", 
+                collocation: "install A in/on B (安裝A在B上)", 
+                sentence: "They plan to install solar panels on the roof.",
+                sentence_cn: "他們計畫在屋頂上安裝太陽能板。"
+            },
+            { 
+                id: 6, 
+                word: "savings", 
+                pos: "n.", 
+                meaning: "節省下來的錢；儲蓄", 
+                collocation: "life savings (畢生積蓄)", 
+                sentence: "He spent his life savings on that classic car.",
+                sentence_cn: "他把畢生積蓄都花在那輛骨董車上。"
+            },
+            { 
+                id: 7, 
+                word: "urge", 
+                pos: "v.", 
+                meaning: "力勸；敦促", 
+                collocation: "urge sb to V (力勸某人做...)", 
+                sentence: "The doctor urged him to stop smoking immediately.",
+                sentence_cn: "醫生力勸他立即戒菸。"
+            },
+            { 
+                id: 8, 
+                word: "plenty", 
+                pos: "pron.", 
+                meaning: "大量；許多", 
+                collocation: "plenty of + N (許多的...)", 
+                sentence: "Don't rush; we have plenty of time to get there.",
+                sentence_cn: "別急，我們有充裕的時間到達那裡。"
+            },
+            { 
+                id: 9, 
+                word: "provide", 
+                pos: "v.", 
+                meaning: "提供", 
+                collocation: "provide sb with sth (提供某人某物)", 
+                sentence: "The school provides students with a healthy lunch.",
+                sentence_cn: "學校提供學生健康的午餐。"
+            },
+            { 
+                id: 10, 
+                word: "advantage", 
+                pos: "n.", 
+                meaning: "優勢", 
+                collocation: "take advantage of (利用...優勢)", 
+                sentence: "Her height gave her an advantage in the basketball game.",
+                sentence_cn: "她的身高讓她在籃球比賽中佔有優勢。"
+            },
+            { 
+                id: 11, 
+                word: "produce", 
+                pos: "v.", 
+                meaning: "生產；製造", 
+                collocation: "produce goods (生產商品)", 
+                sentence: "This factory produces thousands of cars every year.",
+                sentence_cn: "這家工廠每年生產數千輛汽車。"
+            },
+            { 
+                id: 12, 
+                word: "battery", 
+                pos: "n.", 
+                meaning: "電池", 
+                collocation: "charge the battery (幫電池充電)", 
+                sentence: "My phone battery is dead; I need to charge it.",
+                sentence_cn: "我的手機沒電了，我需要充電。"
+            },
+            { 
+                id: 13, 
+                word: "impact", 
+                pos: "n.", 
+                meaning: "影響；衝擊", 
+                collocation: "have an impact on (對...有影響)", 
+                sentence: "Plastic pollution has a huge impact on ocean life.",
+                sentence_cn: "塑膠污染對海洋生物有巨大的影響。"
+            },
+            { 
+                id: 14, 
+                word: "monitor", 
+                pos: "v.", 
+                meaning: "監測；監控", 
+                collocation: "monitor the situation (監控局勢)", 
+                sentence: "Doctors monitored the patient's heart rate closely.",
+                sentence_cn: "醫生密切監測病人的心率。"
+            },
+            { 
+                id: 15, 
+                word: "significant", 
+                pos: "adj.", 
+                meaning: "重大的；重要的", 
+                collocation: "significant change (重大的改變)", 
+                sentence: "There has been a significant increase in sales this month.",
+                sentence_cn: "這個月的銷售額有顯著的增長。"
+            },
+            { 
+                id: 16, 
+                word: "reasonable", 
+                pos: "adj.", 
+                meaning: "合理的", 
+                collocation: "reasonable price (合理的價格)", 
+                sentence: "The restaurant offers good food at a reasonable price.",
+                sentence_cn: "這家餐廳提供價格合理的美味食物。"
+            },
+            { 
+                id: 17, 
+                word: "suggest", 
+                pos: "v.", 
+                meaning: "建議", 
+                collocation: "suggest + Ving (建議做...)", 
+                sentence: "I suggest leaving early to avoid the traffic jam.",
+                sentence_cn: "我建議提早出發以避開塞車。"
+            },
+            { 
+                id: 18, 
+                word: "sustainable", 
+                pos: "adj.", 
+                meaning: "永續的；可持續的", 
+                collocation: "sustainable energy (永續能源)", 
+                sentence: "Wind power is a form of sustainable energy.",
+                sentence_cn: "風力發電是一種永續能源。"
+            },
+            { 
+                id: 19, 
+                word: "do the trick", 
+                pos: "idiom", 
+                meaning: "奏效；起作用", 
+                collocation: "...will do the trick (...會奏效)", 
+                sentence: "If the lock is stuck, a little oil should do the trick.",
+                sentence_cn: "如果鎖卡住了，加點油應該就會奏效。"
+            },
+            { 
+                id: 20, 
+                word: "make the most of", 
+                pos: "idiom", 
+                meaning: "充分利用", 
+                collocation: "make the most of every opportunity (把握機會)", 
+                sentence: "You should make the most of your time studying abroad.",
+                sentence_cn: "你應該充分利用出國留學的時間。"
+            }
+        ];
+
+        // --- 主應用程式 ---
+        const App = () => {
+            const [mode, setMode] = useState('menu'); // menu, study, quiz, result
+            const [currentCardIndex, setCurrentCardIndex] = useState(0);
+            const [isFlipped, setIsFlipped] = useState(false);
+            const [quizScore, setQuizScore] = useState(0);
+            const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+            const [quizQuestions, setQuizQuestions] = useState([]);
+            const [selectedAnswer, setSelectedAnswer] = useState(null);
+            const [showFeedback, setShowFeedback] = useState(false);
+
+            // 發音功能
+            const speak = (text, e) => {
+                if (e) e.stopPropagation(); 
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'en-US';
+                    utterance.rate = 0.9; 
+                    window.speechSynthesis.speak(utterance);
+                }
+            };
+
+            // 初始化測驗
+            const initQuiz = () => {
+                const questions = vocabularyData.map(item => {
+                    const isCloze = Math.random() > 0.5;
+                    let questionText, correctAnswer, options;
+                    
+                    if (isCloze) {
+                        const regex = new RegExp(`(${item.word}|${item.word}s|${item.word}ed|${item.word}ing)`, 'i');
+                        const parts = item.sentence.split(regex);
+                        
+                        if (parts.length < 2) {
+                            questionText = `${item.word} (${item.pos})`;
+                            correctAnswer = item.meaning;
+                            options = generateDistractors(item.meaning, 'meaning');
+                        } else {
+                            questionText = item.sentence.replace(new RegExp(`${item.word}(s|ed|ing)?`, 'gi'), "_______");
+                            correctAnswer = item.word;
+                            options = generateDistractors(item.word, 'word');
+                        }
+                    } else {
+                        questionText = `${item.word} (${item.pos})`;
+                        correctAnswer = item.meaning;
+                        options = generateDistractors(item.meaning, 'meaning');
+                    }
+
+                    return {
+                        id: item.id,
+                        question: questionText,
+                        correctAnswer,
+                        options,
+                        originalWord: item.word,
+                        collocation: item.collocation,
+                        sentence: item.sentence,
+                        sentence_cn: item.sentence_cn
+                    };
+                });
+
+                setQuizQuestions(questions.sort(() => Math.random() - 0.5));
+                setQuizScore(0);
+                setCurrentQuestionIndex(0);
+                setMode('quiz');
+            };
+
+            const generateDistractors = (correct, type) => {
+                const allItems = vocabularyData.map(v => type === 'word' ? v.word : v.meaning);
+                const filtered = allItems.filter(i => i !== correct);
+                const shuffled = filtered.sort(() => Math.random() - 0.5).slice(0, 3);
+                const options = [...shuffled, correct];
+                return options.sort(() => Math.random() - 0.5);
+            };
+
+            const handleAnswerClick = (answer) => {
+                if (showFeedback) return;
+                
+                setSelectedAnswer(answer);
+                setShowFeedback(true);
+                
+                if (answer === quizQuestions[currentQuestionIndex].correctAnswer) {
+                    setQuizScore(prev => prev + 1);
+                }
+            };
+
+            const nextQuestion = () => {
+                setShowFeedback(false);
+                setSelectedAnswer(null);
+                if (currentQuestionIndex < quizQuestions.length - 1) {
+                    setCurrentQuestionIndex(prev => prev + 1);
+                } else {
+                    setMode('result');
+                }
+            };
+
+            // 學習卡片組件
+            const StudyCard = ({ data }) => (
+                <div 
+                    className="w-full max-w-md h-96 perspective-1000 cursor-pointer group"
+                    onClick={() => setIsFlipped(!isFlipped)}
+                >
+                    <div className={`relative w-full h-full duration-500 transform-style-3d transition-transform ${isFlipped ? 'rotate-y-180' : ''}`}>
+                        {/* 正面 */}
+                        <div className="absolute w-full h-full bg-white rounded-xl shadow-lg border-2 border-yellow-400 p-8 flex flex-col items-center justify-center backface-hidden">
+                            <span className="text-gray-500 text-sm mb-2 font-medium">點擊翻卡 (Click to flip)</span>
+                            <div className="flex items-center gap-3 mb-2">
+                                <h2 className="text-4xl font-bold text-gray-800">{data.word}</h2>
+                                <button 
+                                    onClick={(e) => speak(data.word, e)}
+                                    className="p-2 bg-blue-100 rounded-full hover:bg-blue-200 text-blue-600 transition-colors"
+                                    title="聽發音"
+                                >
+                                    <Icon name="Volume2" size={24} />
+                                </button>
+                            </div>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">{data.pos}</span>
+                        </div>
+                        
+                        {/* 背面 */}
+                        <div className="absolute w-full h-full bg-blue-50 rounded-xl shadow-lg border-2 border-blue-400 p-6 flex flex-col justify-center rotate-y-180 backface-hidden overflow-y-auto">
+                            <h3 className="text-2xl font-bold text-gray-800 mb-3 text-center">{data.meaning}</h3>
+                            <div className="w-full bg-white p-4 rounded-lg shadow-sm space-y-3">
+                                <div>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Collocation</p>
+                                    <p className="text-md text-blue-600 font-medium">{data.collocation}</p>
+                                </div>
+                                
+                                <div className="pt-2 border-t border-gray-100">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Example</p>
+                                        <button 
+                                            onClick={(e) => speak(data.sentence, e)}
+                                            className="p-1 bg-gray-100 rounded-full hover:bg-blue-100 text-gray-600 hover:text-blue-600 transition-colors"
+                                        >
+                                            <Icon name="Volume2" size={16} />
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-gray-800 mb-1 leading-snug">"{data.sentence}"</p>
+                                    <p className="text-sm text-gray-500 italic">{data.sentence_cn}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen font-sans p-4 flex flex-col items-center">
+                    <header className="w-full max-w-2xl text-center mb-8 pt-6">
+                        <h1 className="text-3xl font-bold text-yellow-600 flex items-center justify-center gap-2">
+                            Sunlight in our Wallets
+                        </h1>
+                        <p className="text-gray-600 mt-2">B1U7 單字互動訓練營 (Updated)</p>
+                    </header>
+
+                    {mode === 'menu' && (
+                        <div className="w-full max-w-md space-y-6 animate-fade-in">
+                            <div className="bg-white p-6 rounded-2xl shadow-md border-b-4 border-yellow-500">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4">歡迎來到單字特訓班！</h2>
+                                <p className="text-gray-600 mb-6">本次目標：精熟 20 個學測高頻單字與片語。</p>
+                                
+                                <div className="space-y-4">
+                                    <button 
+                                        onClick={() => { setMode('study'); setCurrentCardIndex(0); setIsFlipped(false); }}
+                                        className="w-full py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        <Icon name="BookOpen" size={24} />
+                                        開始學習 (Study Mode)
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={initQuiz}
+                                        className="w-full py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        <Icon name="Brain" size={24} />
+                                        挑戰測驗 (Quiz Mode)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'study' && (
+                        <div className="w-full max-w-md flex flex-col items-center space-y-6">
+                            <div className="flex justify-between w-full text-gray-500 font-medium px-2">
+                                <span>單字卡: {currentCardIndex + 1} / {vocabularyData.length}</span>
+                                <button onClick={() => setMode('menu')} className="hover:text-gray-800">回首頁</button>
+                            </div>
+                            
+                            <StudyCard data={vocabularyData[currentCardIndex]} />
+                            
+                            <div className="flex gap-4 w-full justify-center mt-4">
+                                <button 
+                                    onClick={() => {
+                                        if (currentCardIndex > 0) {
+                                            setCurrentCardIndex(curr => curr - 1);
+                                            setIsFlipped(false);
+                                        }
+                                    }}
+                                    disabled={currentCardIndex === 0}
+                                    className={`p-3 rounded-full ${currentCardIndex === 0 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 shadow-md hover:bg-blue-50'}`}
+                                >
+                                    <Icon name="ArrowLeft" size={28} />
+                                </button>
+                                
+                                <button 
+                                    onClick={() => {
+                                        if (currentCardIndex < vocabularyData.length - 1) {
+                                            setCurrentCardIndex(curr => curr + 1);
+                                            setIsFlipped(false);
+                                        }
+                                    }}
+                                    disabled={currentCardIndex === vocabularyData.length - 1}
+                                    className={`p-3 rounded-full ${currentCardIndex === vocabularyData.length - 1 ? 'bg-gray-200 text-gray-400' : 'bg-white text-blue-600 shadow-md hover:bg-blue-50'}`}
+                                >
+                                    <Icon name="ArrowRight" size={28} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'quiz' && quizQuestions.length > 0 && (
+                        <div className="w-full max-w-md">
+                            <div className="mb-6 flex justify-between items-center bg-white px-4 py-2 rounded-lg shadow-sm">
+                                <span className="font-bold text-gray-600">題目 {currentQuestionIndex + 1} / {quizQuestions.length}</span>
+                                <span className="font-bold text-yellow-600 flex items-center gap-1">
+                                    <Icon name="Star" size={18} /> {quizScore}
+                                </span>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-2xl shadow-lg mb-6 min-h-[160px] flex items-center justify-center text-center relative">
+                                <button 
+                                    onClick={(e) => speak(quizQuestions[currentQuestionIndex].question.includes("_______") ? quizQuestions[currentQuestionIndex].sentence : quizQuestions[currentQuestionIndex].originalWord, e)}
+                                    className="absolute top-4 right-4 p-2 bg-gray-100 rounded-full hover:bg-blue-100 text-gray-600 hover:text-blue-600 transition-colors"
+                                    title="聽題目"
+                                >
+                                    <Icon name="Volume2" size={20} />
+                                </button>
+                                <h3 className="text-xl font-bold text-gray-800 leading-relaxed">
+                                    {quizQuestions[currentQuestionIndex].question}
+                                </h3>
+                            </div>
+
+                            <div className="space-y-3">
+                                {quizQuestions[currentQuestionIndex].options.map((option, idx) => {
+                                    const isCorrect = option === quizQuestions[currentQuestionIndex].correctAnswer;
+                                    const isSelected = selectedAnswer === option;
+                                    
+                                    let btnClass = "w-full p-4 rounded-xl text-left font-semibold text-lg border-2 transition-all ";
+                                    
+                                    if (showFeedback) {
+                                        if (isCorrect) btnClass += "bg-green-100 border-green-500 text-green-800";
+                                        else if (isSelected) btnClass += "bg-red-100 border-red-500 text-red-800";
+                                        else btnClass += "bg-gray-50 border-gray-200 text-gray-400 opacity-50";
+                                    } else {
+                                        btnClass += "bg-white border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-gray-700 shadow-sm";
+                                    }
+
+                                    return (
+                                        <button 
+                                            key={idx}
+                                            onClick={() => handleAnswerClick(option)}
+                                            disabled={showFeedback}
+                                            className={btnClass}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <span>{option}</span>
+                                                {showFeedback && isCorrect && <Icon name="CheckCircle" className="text-green-600" />}
+                                                {showFeedback && isSelected && !isCorrect && <Icon name="XCircle" className="text-red-600" />}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {showFeedback && (
+                                <div className="mt-6 animate-bounce-in">
+                                    <div className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+                                        <p className="text-sm text-gray-500 font-bold">小提示 / 搭配詞：</p>
+                                        <p className="text-blue-700 font-medium">{quizQuestions[currentQuestionIndex].collocation}</p>
+                                        {/* 顯示完整句子中文解釋 */}
+                                        {quizQuestions[currentQuestionIndex].sentence_cn && (
+                                            <p className="text-sm text-gray-500 mt-2 border-t border-blue-200 pt-2">
+                                                {quizQuestions[currentQuestionIndex].sentence_cn}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={nextQuestion}
+                                        className="w-full py-3 bg-gray-800 text-white rounded-xl font-bold text-lg hover:bg-gray-900 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        下一題 <Icon name="ArrowRight" size={20} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {mode === 'result' && (
+                        <div className="w-full max-w-md text-center animate-fade-in">
+                            <div className="bg-white p-8 rounded-3xl shadow-xl border-b-8 border-yellow-400">
+                                <div className="text-yellow-500 mx-auto mb-4 flex justify-center">
+                                    <Icon name="Trophy" size={64} />
+                                </div>
+                                <h2 className="text-3xl font-bold text-gray-800 mb-2">測驗完成！</h2>
+                                <p className="text-gray-600 mb-6">Great job completing the quiz.</p>
+                                
+                                <div className="flex justify-center items-end gap-2 mb-8">
+                                    <span className="text-6xl font-black text-blue-600">{quizScore}</span>
+                                    <span className="text-xl text-gray-400 font-bold mb-2">/ {quizQuestions.length}</span>
+                                </div>
+
+                                <p className="text-lg mb-8 font-medium">
+                                    {quizScore === 20 ? "🎉 太神啦！全部答對！ (Perfect!)" : 
+                                    quizScore >= 16 ? "🌟 很棒喔！繼續保持！ (Excellent!)" :
+                                    quizScore >= 12 ? "👍 不錯，再多練習一下！ (Good!)" :
+                                    "💪 加油，多複習單字卡喔！ (Keep trying!)"}
+                                </p>
+
+                                <button 
+                                    onClick={() => setMode('menu')}
+                                    className="w-full py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-transform hover:scale-105"
+                                >
+                                    <Icon name="RotateCcw" size={24} />
+                                    再試一次 (Try Again)
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
